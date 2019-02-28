@@ -1,0 +1,9 @@
+* TODO
+
+- add licence
+- flycheck, lint viztab-demo, viztab-test
+- add package receipy
+- copy `Commentary' section from viztab.el to this readme or better:
+  automatically insert Commentary section from viztab.el into this
+  readme.
+- automatically insert screenshot into this readme.
