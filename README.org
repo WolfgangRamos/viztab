@@ -1,4 +1,4 @@
-* TODO
+* TODO TODOs
 
 - add licence
 - flycheck, lint viztab-demo, viztab-test
@@ -7,3 +7,4 @@
   automatically insert Commentary section from viztab.el into this
   readme.
 - automatically insert screenshot into this readme.
+- make package ready for inclusion in melpa 
