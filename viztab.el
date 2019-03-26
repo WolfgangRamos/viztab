@@ -9,7 +9,10 @@
 ;; Version: 1.0
 ;; Package-Requires: ((emacs "25.1") (cl-generic "0.3"))
 
-;; This file is part of GNU Emacs.
+;; This file is not part of GNU Emacs.
+
+;; This file is distributed unter the GNU Public License v3.0 or
+;; later.
 
 ;;; Commentary:
 
