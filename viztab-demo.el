@@ -32,28 +32,27 @@
     (set-text-properties 0 (length column-end) `(face viztab-demo-rainbow-table-violet font-lock-face viztab-demo-rainbow-table-violet) column-end)
     (set-text-properties 0 (length first-seperator) `(face viztab-demo-rainbow-table-yellow font-lock-face viztab-demo-rainbow-table-yellow) first-seperator)
     (set-text-properties 0 (length second-seperator) `(face viztab-demo-rainbow-table-blue font-lock-face viztab-demo-rainbow-table-blue) second-seperator)
-    (make-instance 'viztab
-                   :data '(("A" "table" "full") ("of" "pretty" "things")
-                           ("Unicorns" "Fairies" "Leprechauns")
-                           ("Rainbows" "Nyan Cat" "etc."))
+    (make-instance 'viztab-table-definition
                    :column-face '(viztab-demo-rainbow-table-orange
                                   viztab-demo-rainbow-table-green
                                   viztab-demo-rainbow-table-indigo)
-                   :column-start column-start
-                   :column-end column-end
+                   :row-start column-start
+                   :row-end column-end
                    :column-seperator `(,first-seperator ,second-seperator))))
 
 (defun viztab-demo--make-rainbow-table-screenshot-and-exit ()
   "Create a colorful table, display it, make and save a screenshot."
-  (let ((rainbow-table (viztab-demo--create-rainbow-table))
+  (let ((rainbow-table-def (viztab-demo--create-rainbow-table))
         (screenshot-command viztab-demo-screenshot-command)
         (screenshot-command-args viztab-demo-screenshot-command-args)
         (buffer (generate-new-buffer "*Viztab Rainbow Table Demo*"))
         exit-code
         error-output)
-    (viztab-update-visual-rows rainbow-table)
-    (viztab--write-table-to-buffer rainbow-table buffer)
     (switch-to-buffer buffer)
+    (viztab-insert-table '(("A" "table" "full") ("of" "pretty" "things")
+                           ("Unicorns" "Fairies" "Leprechauns")
+                           ("Rainbows" "Nyan Cat" "etc."))
+                         rainbow-table-def)
     (sit-for 0.5)
     (with-temp-buffer
       (setq exit-code (apply 'call-process screenshot-command nil (current-buffer) t screenshot-command-args))
@@ -62,8 +61,6 @@
     (if (> exit-code 0)
         (insert (format "\n\nError while calling `%s %s'" screenshot-command (concat screenshot-command-args)) "\n\n" error-output)
       (kill-emacs))))
-
-;; emacs.exe --no-init-file --directory=C://Users//wra//prj//viztap --load=C://Users//wra//prj//viztap//viztab-demo.el --eval='(setq viztab-demo-screenshot-command \"C://Users//wra//prj//viztap//Screenshooter//Screenshooter//bin//Release//Screenshooter.exe\")' --eval='(setq viztab-demo-screenshot-command-args (list \"-u\" (format \"%d,%d\" (+ 11 (car (frame-position))) (+ 35 (cdr (frame-position)))) \"-l\" (format \"%d,%d\" (+ 105 (frame-outer-width)) (+ 96 (frame-outer-height))) \"RainbowTable.png\"))' --funcall=viztab-demo--make-rainbow-table-screenshot-and-exit
 
 (provide 'viztab-demo)
 ;;; viztab-demo.el ends here

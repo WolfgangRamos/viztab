@@ -9,7 +9,7 @@
 (require 'cl-lib)
 
 (defface viztab-test-face-one '((t (:foreground "Red" :slant italic))) "Viztab test face No. 1.")
-(defface viztab-test-face-two '((t (:foreground "Blue" :slant bold))) "Viztab test face No. 2.")
+(defface viztab-test-face-two '((t (:foreground "Blue" :wright bold))) "Viztab test face No. 2.")
 
 (defun viztab-test--get-first-and-second-element (sequence)
   (list (seq-elt sequence 0) (seq-elt sequence 1)))
@@ -135,8 +135,6 @@
           (let* ((buffer-lines (split-string (buffer-string) "[\n]+" t)))
             (seq-mapn (lambda (line-string row-string) (should (string= line-string row-string))) buffer-lines table)))
       (kill-buffer buffer))))
-
-;; emacs.exe --no-init-file --batch --directory=C://Users//wra//prj//viztap --load=ert --load=viztab-test --funcall=ert-run-tests-batch-and-exit
 
 (provide 'viztab-test)
 ;;; viztab-test.el ends here
