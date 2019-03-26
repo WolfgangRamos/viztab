@@ -1,4 +1,4 @@
-;;; viztab.el --- Visualize (Data) Structures as tables
+;;; viztab.el --- Visualize (Data) Structures as tables -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2019
 
@@ -103,14 +103,14 @@
 (require 'cl-generic)
 (require 'seq)
 
-(defclass viztab ()
-  ((data
-    :initarg :data
-    :type (or list vector)
+(defclass viztab-table-definition ()
+  ((column-widths
+    :initform nil
+    :type list
+    :initarg :column-widths
     :documentation
-    "The data from which the table is created. The data must be
-    either (1) a list of lists, (2) a list of vectors, (3) a
-    vector of lists, or (4) a vector of vectors.")
+    "A list of integers. Each element of this specifies a column
+    width in number of characters.")
    (column-seperator
     :initarg :column-seperator
     :type (or string list)
@@ -124,16 +124,16 @@
     superfluous column seperators at the lists end are ignored.
     Text properties within this string / these strings are
     respected.")
-   (column-start
-    :initarg :column-start
+   (row-start
+    :initarg :row-start
     :type string
     :initform ""
     :documentation
     "The string used as the left outer border of the left most
     cell of each row. Text properties within this string are
     respected.")
-   (column-end
-    :initarg :column-end
+   (row-end
+    :initarg :row-end
     :type string
     :initform ""
     :documentation
@@ -152,55 +152,63 @@
     the columns maximum width. Text properties within this string
     are respected.")
    (column-face
-    :initarg
-    :column-face (or face list)
+    :initarg :column-face
+    :type (or face list)
     :documentation
     "The named or anonymous face that should be applied to each
     column or a list of named or anonymous faces applied to the
     columns. In the latter case the list elements are repeated if
     the number of columns exceeds the number of given faces. Vice
     versa, if the number of given faces exceeds the number of
-    columns the superfluous faces at the lists end are ignored.")
-   (column-widths
-    :initform nil
-    :type list
-    :documentation
-    "The column widths in numer of characters.")
-   (splitter
-    :initarg :splitter
-    :type function
-    :initform 'identity
-    :documentation
-    "A function to split a row object (i.e. an element of
-    `:data') into individual cells. This function must return a
-    sequence. This function is applied to each element or
-    row-objects to generate the columns.")
-   (visual-rows
-    :type list
-    :documentation
-    "A list of rows. Each row is a list of cells. Each cell is a
-    string trimmed to its column width (see
-    `trim-indicator').")))
+    columns the superfluous faces at the lists end are ignored.")))
 
-(cl-defgeneric viztab-split-rows ()
-  "Split row objects into columns.")
+(defun viztab--maybe-split-row-objects (row-objects &optional splitter-function)
+  "Split ROW-OBJECTS into columns using SPLITTER-FUNCTION.
 
-(cl-defmethod viztab-split-rows ((table viztab))
-  "Split row objects into columns."
-  (mapcar (oref table splitter) (oref table data)))
+If SPLITTER-FUNCTION is nil return ROW-OBJECTS, else map
+SPLITTER-FUNCTION over ROW-OBJECTS."
+  (if (functionp splitter-function)
+      (seq-map splitter-function row-objects)
+    row-objects))
 
-(defun viztab--compute-column-widths (columns)
-  "Compute column widths of data in COLUMNS."
-  (let ((column-widths (and (seqp columns) columns (make-list (seq-length (seq-elt columns 0)) 0))))
-    (seq-reduce #'(lambda (widths column) (seq-mapn 'max widths (seq-map 'length column))) columns column-widths)))
+(cl-defgeneric viztab--get-or-compute-column-widths (rows (format viztab-table-definition))
+  "Return column widths from FORMAT or compute them from the row data in ROWS.")
 
-;;(viztab--compute-column-widths (viztab-split-rows viztab-test-instance))
+(cl-defmethod viztab--get-or-compute-column-widths (rows (format viztab-table-definition))
+  "Return FORMATs `column-widths' slot value if it is bound and not nil.
+Otherwise compute the column widths from the data in ROWS.
+
+The elements of FORMATs `column-widths' are cyclically repeated
+if necessary to match the number of columns in ROWS
+see `viztab--cycle-repeat'. Note that the number of columns in
+ROWS is only determined heuristically by looking at the number of
+elements in the first element of ROWS."
+  (let ((column-widths (and (slot-boundp format 'column-widths)
+                            (not (null (oref format column-widths)))
+                            (oref format column-widths)))
+        (number-of-columns (if (not (seq-empty-p rows))
+                               (seq-length (seq-elt rows 0))
+                             0)))
+    (if column-widths
+        (if (and column-widths (= (length column-widths) number-of-columns))
+            column-widths
+          (viztab--cycle-repeat column-widths number-of-columns))
+      (viztab--compute-column-widths rows))))
+
+(defun viztab--compute-column-widths (rows)
+  "Compute column widths required to fit the data in ROWS."
+  (let ((column-widths (and (seqp rows)
+                            (not (seq-empty-p rows))
+                            (make-list (seq-length (seq-elt rows 0)) 0))))
+    (seq-reduce #'(lambda (maximum-widths row) (seq-mapn 'max maximum-widths (seq-map 'length row))) rows column-widths)))
 
 (defun viztab--make-cell-string (str length trim-indicator &optional cell-face)
   "Create a cell string by trimming STR to LENGTH.
 If the length of STR exceeds LENGTH then STR is trimmed so that
 the result of appending TRIM-INDICATOR to the trimmed STR results
-in a string of length LENGTH.
+in a string of length LENGTH. If LENGTH exceeds the length of
+STR, STR is padded on the right side with spaces to match the
+reqested LENGTH.
 
 If CELL-FACE is a named or anonymous face it will be used as
 `face' and `font-lock-face' text property of the resulting
@@ -224,21 +232,21 @@ string."
 (defun viztab--repeat (list-or-element length)
   "Repeat one element or a list of elements until LENGTH is reached.
 
-IF LIST-OR-ELEMENT is a string this function returns a list of
-length LENGTH where each element is LIST-OR-ELEMENT.
+IF LIST-OR-ELEMENT is a string, a named or anonymous face, this
+function returns a list of length LENGTH where each element is
+LIST-OR-ELEMENT.
 
 If LIST-OR-ELEMENT is a list this function concats
 LIST-OR-ELEMENT until LENGTH is reached. For more information see
-`viztab--repeat-list'."
+`viztab--cycle-repeat'."
   (if (or (stringp list-or-element) (viztab--face-or-anonymous-face-p list-or-element))
       (make-list length list-or-element)
-    (viztab--repeat-list list-or-element length)))
+    (viztab--cycle-repeat list-or-element length)))
 
-(defun viztab--repeat-list (list length)
-  "Repeat elements in LIST until LENGTH is reached.
+(defun viztab--cycle-repeat (list length)
+  "Cyclically repeat elements in LIST until LENGTH is reached.
 
-If the length of the list LIST if it is longer than
-LENGTH the result is a list containing only the first LENGTH
+If length of LIST is greater than LENGTH, return the first LENGTH
 elements of LIST."
   (let* ((list-length (seq-length list))
          (repeat (/ length list-length))
@@ -255,74 +263,55 @@ Returns the concatenated string \"< COLUMN-START > < CELL-STRINGS seperated by C
          (column-seperators (viztab--repeat column-seperator interspaces)))
     (concat column-start (apply 'concat (seq-mapn 'concat cell-strings (append column-seperators '("")))) column-end)))
 
-(cl-defgeneric viztab-update-visual-rows ()
-  "Update the visual display of a `viztab' table rows.")
+(defun viztab--table-definition-or-default (table-definition)
+  "Return TABLE-DEFINITION or a default `viztab-table-definition'.
 
-(cl-defmethod viztab-update-visual-rows ((table viztab) &optional widths)
-  "Update the visual display of a `viztab' table rows."
-  (let* ((splitted-rows (viztab-split-rows table))
-         (widths (or widths (viztab--compute-column-widths splitted-rows)))
-         (number-of-cells (length widths))
-         (trim-indicators (viztab--repeat (oref table trim-indicator) number-of-cells))
-         (column-seperator (oref table column-seperator))
-         (column-start (oref table column-start))
-         (column-end (oref table column-end))
-         (column-faces (if (slot-boundp table 'column-face)
-                           (viztab--repeat (oref table column-face) number-of-cells)
-                         (make-list number-of-cells nil)))
-         (cell-strings (seq-map #'(lambda (row) (seq-mapn 'viztab--make-cell-string row widths trim-indicators column-faces)) splitted-rows))
-         (row-strings (seq-map #'(lambda (row-strings) (viztab--make-row-string row-strings column-start column-seperator column-end)) cell-strings)))
-    (oset table column-widths widths)
-    (oset table visual-rows row-strings)))
+If TABLE-DEFINITION is nil return a default
+`viztab-table-definition'. If TABLE-DEFINITION is not nil, throw
+an error if it is *not* an instance of `viztab-table-definition';
+otherwise return TABLE-DEFINITION."
+  (or (and (viztab-table-definition-p table-definition) table-definition)
+      (and (listp table-definition) (not (null table-definition)) (apply 'make-instance (cons 'viztab-table-definition table-definition)))
+      (make-instance 'viztab-table-definition)))
 
-(cl-defgeneric viztab--append-table-to-buffer ()
-  "Append a table to a buffer.")
+;;;###autoload
+(defun viztab-table (row-objects &optional table-definition object-to-cells)
+  "Format ROW-OBJECTS as table.
 
-(cl-defmethod viztab--append-table-to-buffer ((table viztab) buffer-or-name)
-  "Append string representation of TABLE to BUFFER-OR-NAME."
-  (let ((table-string (mapconcat 'identity (oref table visual-rows) "\n")))
-    (with-current-buffer (get-buffer-create buffer-or-name)
-      (save-excursion
-        (goto-char (point-max))
-        (insert table-string)))))
+ROW-OBJECTS must be either a list or a vector. TABLE-DEFINITION
+must be a `viztab-table-definition'. OBJECT-TO-CELLS can be used
+to transform the objects in ROW-OBJECTS before displaying them in
+a table. If OBJECT-TO-CELLS is non-nil, it is (non-recursively)
+applied to each element of ROW-OBJECTS to generate the cell
+values that should be displayed. I.e. OBJECT-TO-CELLS must be a
+function that accepts one argument and returns a list or a vector
+of strings. If OBJECT-TO-CELLS is nil, each element of
+ROW-OBJECTS is assumend to be a list or a vector of cells that
+should be displayed as-is."
+  (let* ((table-def (viztab--table-definition-or-default table-definition))
+         (rows (viztab--maybe-split-row-objects row-objects object-to-cells))
+         (widths (viztab--get-or-compute-column-widths rows table-def))
+         (number-of-columns (length widths))
+         (trim-indicators (viztab--repeat (oref table-def trim-indicator) number-of-columns))
+         (column-seperator (oref table-def column-seperator))
+         (row-start (oref table-def row-start))
+         (row-end (oref table-def row-end))
+         (column-faces (if (slot-boundp table-def 'column-face)
+                           (viztab--repeat (oref table-def column-face) number-of-columns)
+                         (make-list number-of-columns nil)))
+         (cell-strings (and (> number-of-columns 0)
+                            (seq-map #'(lambda (row) (seq-mapn 'viztab--make-cell-string row widths trim-indicators column-faces)) rows)))
+         (row-strings (seq-map #'(lambda (cells) (viztab--make-row-string cells row-start column-seperator row-end)) cell-strings)))
+    row-strings))
 
-(cl-defgeneric viztab--write-table-to-buffer ()
-  "Write a table to a buffer replacing its previous content.")
+;;;###autoload
+(defun viztab-insert-table (row-objects &optional table-definition object-to-cells)
+  "Format ROW-OBJECTS as table and insert result into current buffer.
 
-(cl-defmethod viztab--write-table-to-buffer ((table viztab) buffer-or-name)
-  "Write a TABLE to a BUFFER-OR-NAME replacing its previous
-  content."
-  (with-current-buffer (get-buffer-create buffer-or-name)
-    (erase-buffer)
-    (viztab--append-table-to-buffer table buffer-or-name)))
-
-(defun viztab--new-table-output-buffer ()
-  "Create a new buffer for displaying tables."
-  (generate-new-buffer "*viztab table*"))
-
-(cl-defgeneric viztab-show-table ()
-  "Show table in current window.")
-
-(cl-defmethod viztab-show-table ((table viztab))
-  "Show TABLE in current window."
-  (interactive "STable to show: ")
-  (if (not (viztab-p table))
-      (error "The selected variable is not assigned to a viztab table")
-    (let ((buffer (viztab--new-table-output-buffer)))
-      (viztab--write-table-to-buffer table buffer)
-      (switch-to-buffer buffer))))
-
-(cl-defgeneric viztab-show-table-other-window ()
-  "Show table in other window.")
-
-(cl-defmethod viztab-show-table-other-window ((table viztab))
-  "Show TABLE in other window."
-  (interactive "STable to show: ")
-  (if (not (viztab-p table))
-      (error "The selected variable is not assigned to a viztab table")
-    (let ((buffer (viztab--new-table-output-buffer)))
-      (viztab--write-table-to-buffer table buffer)
-      (switch-to-buffer-other-window buffer))))
+For information on parameters TABLE-DEFINITION and OBJECT-TO-CELLS see `viztab-table'"
+  (let* ((table (viztab-table row-objects table-definition object-to-cells))
+         (table-string (mapconcat 'identity table "\n")))
+    (insert table-string)))
 
 (provide 'viztab)
 ;;; viztab.el ends here

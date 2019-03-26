@@ -6,35 +6,13 @@
 ;;
 ;;; Code:
 (require 'viztab)
+(require 'cl-lib)
 
-(defface viztab-test-face '((t (:foreground "Red" :slant italic))) "Viztab test face.")
+(defface viztab-test-face-one '((t (:foreground "Red" :slant italic))) "Viztab test face No. 1.")
+(defface viztab-test-face-two '((t (:foreground "Blue" :slant bold))) "Viztab test face No. 2.")
 
 (defun viztab-test--get-first-and-second-element (sequence)
   (list (seq-elt sequence 0) (seq-elt sequence 1)))
-
-(defun viztab-test--create-test-instance-using-list-of-lists ()
-  "Return a viztab test instance with `:data' set to a list of lists."
-  (make-instance 'viztab
-                 :data '(("michael" "random" "01.02.2003") ("john" "doe" "04.05.2006"))
-                 :splitter 'viztab-test--get-first-and-second-element))
-
-(defun viztab-test--create-test-instance-using-list-of-vectors ()
-  "Return a viztab test instance with `:data' set to a list of lists."
-  (make-instance 'viztab
-                 :data '(["michael" "random" "01.02.2003"] ["john" "doe" "04.05.2006"])
-                 :splitter 'viztab-test--get-first-and-second-element))
-
-(defun viztab-test--create-test-instance-using-vector-of-vectors ()
-    "Return a viztab test instance with `:data' set to a vector of vectors."
-  (make-instance 'viztab
-                 :data [["michael" "random" "01.02.2003"] ["john" "doe" "04.05.2006"]]
-                 :splitter 'viztab-test--get-first-and-second-element))
-
-(defun viztab-test--create-test-instance-using-vector-of-lists ()
-  "Return a viztab test instance with `:data' set to a vector of vectors."
-  (make-instance 'viztab
-                 :data [("michael" "random" "01.02.2003") ("john" "doe" "04.05.2006")]
-                 :splitter 'viztab-test--get-first-and-second-element))
 
 ;;; Tests
 
@@ -44,79 +22,118 @@
         (anonymous-face-two '(:slant italic)))
     (should (viztab--face-or-anonymous-face-p anonymous-face-one))
     (should (viztab--face-or-anonymous-face-p anonymous-face-two))
-    (should (viztab--face-or-anonymous-face-p 'viztab-test-face))))
+    (should (viztab--face-or-anonymous-face-p 'viztab-test-face-one))))
 
-(ert-deftest viztab-test-table-generation-for-list-of-lists ()
-  "Testing viztab functionality for tables."
-  (let ((table (viztab-test--create-test-instance-using-list-of-lists)))
-    (viztab-update-visual-rows table)
-    (should (equal (oref table visual-rows) '("michael random"
-                                              "john    doe   ")))
+(ert-deftest viztab-test-table-generation-from-list ()
+  (cl-letf* ((list-of-lists '(("michael" "random" "01.02.2003") ("john" "doe" "04.05.2006")))
+             (list-of-vectors '(["michael" "random" "01.02.2003"] ["john" "doe" "04.05.2006"]))
+             ((symbol-function 'get-first-and-second-element) (lambda (sequence) (list (seq-elt sequence 0) (seq-elt sequence 1)))))
+    (should
+     (equal
+      (viztab-table list-of-lists nil 'get-first-and-second-element)
+      '("michael random"
+        "john    doe   ")))
+    (should
+     (equal
+      (viztab-table list-of-lists (make-instance 'viztab-table-definition :column-widths '(5 3 7)))
+      '("mich… ra… 01.02.…"
+        "john  doe 04.05.…")))
+    (should
+     (equal
+      (viztab-table list-of-lists '(:column-widths (5 3 7)))
+      '("mich… ra… 01.02.…"
+        "john  doe 04.05.…")))
+    (should
+     (equal
+      (viztab-table list-of-vectors (make-instance 'viztab-table-definition :column-widths '(5 3 7)))
+      '("mich… ra… 01.02.…"
+        "john  doe 04.05.…")))))
 
-    (viztab-update-visual-rows table '(5 3))
-    (should (equal (oref table visual-rows) '("mich… ra…"
-                                              "john  doe")))
-    (should (equal (oref table column-widths) '(5 3)))))
+(ert-deftest viztab-test-table-generation-empty-list ()
+  (cl-letf* (((symbol-function 'get-first-and-second-element) (lambda (sequence) (list (seq-elt sequence 0) (seq-elt sequence 1)))))
+    (should
+     (equal
+      (viztab-table nil)
+      nil))
+    (should
+     (equal
+      (viztab-table nil (make-instance 'viztab-table-definition :column-widths '(5 3 7)))
+      nil))
+    (should
+     (equal
+      (viztab-table nil (make-instance 'viztab-table-definition :column-widths '(5 3 7)) (lambda (elem) elem))
+      nil))
+    (should
+     (equal
+      (viztab-table nil (make-instance 'viztab-table-definition :column-widths '(5 3 7)) 'get-first-and-second-element)
+      nil))
+    (should
+     (equal
+      (viztab-table '([] []))
+      nil))))
 
-(ert-deftest viztab-test-table-generation-for-list-of-vectors ()
-  "Testing viztab functionality for tables."
-  (let ((table (viztab-test--create-test-instance-using-list-of-vectors)))
-    (viztab-update-visual-rows table)
-    (should (equal (oref table visual-rows) '("michael random"
-                                              "john    doe   ")))
+(ert-deftest viztab-test-table-generation-from-vector ()
+  (cl-letf* ((vector-of-vectors [["michael" "random" "01.02.2003"] ["john" "doe" "04.05.2006"]])
+             (vector-of-lists [("michael" "random" "01.02.2003") ("john" "doe" "04.05.2006")])
+             ((symbol-function 'get-first-and-second-element) (lambda (sequence) (list (seq-elt sequence 0) (seq-elt sequence 1)))))
+    (should
+     (equal
+      (viztab-table [])
+      nil))
+    (should
+     (equal
+      (viztab-table [] (make-instance 'viztab-table-definition :column-widths '(5 3 7)))
+      nil))
+    (should
+     (equal
+      (viztab-table [] (make-instance 'viztab-table-definition :column-widths '(5 3 7)) 'get-first-and-second-element)
+      nil))
+    (should
+     (equal
+      (viztab-table [() ()])
+      nil))
+    (should
+     (equal
+      (viztab-table vector-of-vectors nil 'get-first-and-second-element)
+      '("michael random"
+        "john    doe   ")))
+    (should
+     (equal
+      (viztab-table vector-of-vectors (make-instance 'viztab-table-definition :column-widths '(5 3 7)))
+      '("mich… ra… 01.02.…"
+        "john  doe 04.05.…")))
+    (should
+     (equal
+      (viztab-table vector-of-lists (make-instance 'viztab-table-definition :column-widths '(5 3 7)))
+      '("mich… ra… 01.02.…"
+        "john  doe 04.05.…")))))
 
-    (viztab-update-visual-rows table '(5 3))
-    (should (equal (oref table visual-rows) '("mich… ra…"
-                                              "john  doe")))
-    (should (equal (oref table column-widths) '(5 3)))))
-
-(ert-deftest viztab-test-table-generation-for-vector-of-vectors ()
-  "Testing viztab functionality for tables."
-  (let ((table (viztab-test--create-test-instance-using-vector-of-vectors)))
-    (viztab-update-visual-rows table)
-    (should (equal (oref table visual-rows) '("michael random"
-                                              "john    doe   ")))
-
-    (viztab-update-visual-rows table '(5 3))
-    (should (equal (oref table visual-rows) '("mich… ra…"
-                                              "john  doe")))
-    (should (equal (oref table column-widths) '(5 3)))))
-
-(ert-deftest viztab-test-table-generation-for-vector-of-lists ()
-  "Testing viztab functionality for tables."
-  (let ((table (viztab-test--create-test-instance-using-vector-of-lists)))
-    (viztab-update-visual-rows table)
-    (should (equal (oref table visual-rows) '("michael random"
-                                              "john    doe   ")))
-
-    (viztab-update-visual-rows table '(5 3))
-    (should (equal (oref table visual-rows) '("mich… ra…"
-                                              "john  doe")))
-    (should (equal (oref table column-widths) '(5 3)))))
 
 (ert-deftest viztab-test-table-generation-with-column-face ()
   "Testing table generation with column face."
-  (let ((table (viztab-test--create-test-instance-using-list-of-lists)))
-    (oset table :column-face 'viztab-test-face)
-    (viztab-update-visual-rows table)
-    (let ((first-row (car (oref table visual-rows)))
-          (first-col-width (car (oref table column-widths))))
-      (should (eq (get-text-property 0 'face first-row) 'viztab-test-face))
-      (should (eq (get-text-property 0 'font-lock-face first-row) 'viztab-test-face))
-      (should (eq (next-single-property-change 0 'face first-row) first-col-width)))))
+  (let* ((list-of-lists '(("michael" "random" "01.02.2003") ("john" "doe" "04.05.2006")))
+         (col-widths '(7 6 10))
+         (table (viztab-table list-of-lists (make-instance 'viztab-table-definition :column-face '(viztab-test-face-one viztab-test-face-two) :column-widths col-widths))))
+    (let* ((first-row (car table))
+           (first-col-width (car col-widths))
+           (second-col-start (1+ first-col-width))
+           (second-col-width (car (cdr col-widths))))
+      (should (eq (get-text-property 0 'face first-row) 'viztab-test-face-one))
+      (should (eq (get-text-property 0 'font-lock-face first-row) 'viztab-test-face-one))
+      (should (eq (next-single-property-change 0 'face first-row) first-col-width))
+      (should (eq (get-text-property second-col-start 'face first-row) 'viztab-test-face-two))
+      (should (eq (next-single-property-change second-col-start 'face first-row) (+ second-col-start second-col-width))))))
 
-(ert-deftest viztab-test-writing-table-to-buffer ()
+(ert-deftest viztab-test-insert-table-into-buffer ()
   "Test writing of tables to buffers."
-  (let ((table (viztab-test--create-test-instance-using-list-of-lists))
-        (buffer (generate-new-buffer "*viztab test output*")))
+  (let* ((list-of-lists '(("michael" "random" "01.02.2003") ("john" "doe" "04.05.2006")))
+         (table (viztab-table list-of-lists '(:column-face viztab-test-face-one)))
+         (buffer (generate-new-buffer "*viztab test output*")))
     (unwind-protect
-        (progn
-          (oset table :column-face 'viztab-test-face)
-          (viztab-update-visual-rows table)
-          (viztab--write-table-to-buffer table buffer)
-          (with-current-buffer buffer
-            (let* ((buffer-lines (split-string (buffer-string) "[\n]+" t)))
-              (seq-mapn (lambda (line-string row-string) (should (string= line-string row-string))) buffer-lines (oref table visual-rows)))))
+        (with-current-buffer buffer
+          (viztab-insert-table list-of-lists '(:column-face viztab-test-face-one))
+          (let* ((buffer-lines (split-string (buffer-string) "[\n]+" t)))
+            (seq-mapn (lambda (line-string row-string) (should (string= line-string row-string))) buffer-lines table)))
       (kill-buffer buffer))))
 
 ;; emacs.exe --no-init-file --batch --directory=C://Users//wra//prj//viztap --load=ert --load=viztab-test --funcall=ert-run-tests-batch-and-exit
