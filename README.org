@@ -1,6 +1,5 @@
 * TODO TODOs
 
-- add licence
 - flycheck, lint viztab-demo, viztab-test
 - add package receipy
 - copy `Commentary' section from viztab.el to this readme or better:
