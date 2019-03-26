@@ -46,30 +46,14 @@
 ;; (2) a vector of Lisp objects, e.g. a vector of vectors like `[[A B C]
 ;;     [D E F] [G H I]]' or a vector of `eieio' objects.
 
-;; To format one of these structures as table you
+;; The most simple way to format one of these structures as table is:
 
-;; (1) Create an instance of type `viztab',
+;; (viztab-table <structure>)
 
-;; (2) Set its `:data' field to the nested list or vectors structure
-;;     that contains the objects you want to format as table.
+;; e.g.:
 
-;; (3) Optionally set the `:splitter' field of your object to a
-;;     function that extracts the fields you want to display from your
-;;     objects.
+;; (viztab-table '(("Foo" "FooBar") ("ABCDEF" "FGHIJKLM"))).
 
-;; (4) Call `viztab-update-visual-rows' on your instance.
-
-;; (5) Extract the formatted row strings from the field `:visual-rows'
-;;     of your instance and use them in your code or display your
-;;     table by calling `viztab-show-table' or
-;;     `viztab-show-table-other-window' on your instance.
-
-;; If you do not want to create an instance you can also use
-;; `viztab-format-as-table' to format a nested vector or list
-;; structure as table.
-
-;; An example result of formatting one of these data structures as
-;;
 ;; The formatting result can be further adjusted by:
 
 ;; - Customizing how elements of your list or vector structure
@@ -80,13 +64,15 @@
 ;; - Customizing the column seperator, as well as the row start and
 ;;   end strings and their faces.
 
-;; - Setting maximum columns widths (cell strings are trimmed
+;; - Setting maximum columns widths (cell strings are trimmed/padded
 ;;   accordingly).
 
 ;; - Customizing the trim indicator that is appended to a trimmed
 ;;   string to inform the user that the cell string was trimmed.
 
 ;; - Add faces to columns.
+
+;; For more information see `viztab-table' and `viztab-table-definition'.
 
 ;; A demonstration of all features can be found in `viztab-demo.el'.
 
@@ -279,7 +265,9 @@ otherwise return TABLE-DEFINITION."
   "Format ROW-OBJECTS as table.
 
 ROW-OBJECTS must be either a list or a vector. TABLE-DEFINITION
-must be a `viztab-table-definition'. OBJECT-TO-CELLS can be used
+must be a `viztab-table-definition' or a plist. If it is a plist
+it is used as INITARGS to in a call to `make-instance' creating a
+`viztab-table-definition' instance. OBJECT-TO-CELLS can be used
 to transform the objects in ROW-OBJECTS before displaying them in
 a table. If OBJECT-TO-CELLS is non-nil, it is (non-recursively)
 applied to each element of ROW-OBJECTS to generate the cell
