@@ -1,4 +1,4 @@
-;;; viztab-test.el --- Tests for viztab.el
+;;; viztab-test.el --- Tests for viztab.el -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 ;;

@@ -1,4 +1,4 @@
-;;; viztab-demo.el --- Prelude mode configuration
+;;; viztab-demo.el --- viztab.el usage demos -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 ;;
