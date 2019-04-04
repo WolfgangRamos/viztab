@@ -5,7 +5,7 @@
 ;; Author: Wolfgang Ramos <wolfgang.ramos@gmail.com>
 ;; Maintainer: Wolfgang Ramos <wolfgang.ramos@gmail.com>
 ;; URL: https://github.com/WolfgangRamos/viztab
-;; Package-Version: 20190228
+;; Package-Version: 20190404.0432
 ;; Version: 1.0
 ;; Package-Requires: ((emacs "25.1") (cl-generic "0.3"))
 
@@ -75,9 +75,11 @@
 
 ;; - Add faces to columns.
 
-;; For more information see `viztab-table' and `viztab-table-definition'.
+;; For more information refere to the documentation of `viztab-table'
+;; and `viztab-table-definition'.
 
-;; A demonstration of all features can be found in `viztab-demo.el'.
+;; A demonstration of all features can be found under URL
+;; `https://github.com/WolfgangRamos/viztab'
 
 ;;; Change Log:
 
