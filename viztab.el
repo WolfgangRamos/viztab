@@ -1,12 +1,12 @@
 ;;; viztab.el --- Visualize (Data) Structures as tables -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019
+;; Copyright (C) 2019 Wolfgang Ramos
 
 ;; Author: Wolfgang Ramos <wolfgang.ramos@gmail.com>
+;; Version: 1.0
+;; Package-Version: 20190404.0432
 ;; Maintainer: Wolfgang Ramos <wolfgang.ramos@gmail.com>
 ;; URL: https://github.com/WolfgangRamos/viztab
-;; Package-Version: 20190404.0432
-;; Version: 1.0
 ;; Package-Requires: ((emacs "25.1") (cl-generic "0.3"))
 
 ;; This file is not part of GNU Emacs.
